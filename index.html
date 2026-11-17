@@ -40,12 +40,12 @@
   body.touch #pad { display:flex; }
   body.touch footer .keys, body.touch h1 { display:none; }
   body.touch header { padding:6px 10px; justify-content:center; }
-  body.touch .chip, body.touch select { font-size:16px; padding:3px 8px; }
+  body.touch .chip, body.touch select { font-size:15px; padding:2px 7px; }
+  body.touch header .bar { gap:5px; }
   body.touch main { padding:0 6px; }
   body.touch canvas { width:min(100%, calc((100vh - 64px) * 5 / 3)); border-width:3px; }
-  body.touch footer { position:fixed; top:6px; right:8px; width:auto; padding:0; z-index:6; }
-  body.touch footer .bar:first-child { display:none; }
-  body.touch footer button { font-size:14px; padding:3px 8px; }
+  body.touch footer { display:none; }
+  body.touch header button { font-size:15px; padding:3px 9px; }
   body.touch #pad { bottom:calc(14px + env(safe-area-inset-bottom)); }
   body.touch #pad button { width:92px; height:92px; font-size:38px; }
   body.touch #pad button[data-k="jump"] { width:110px; font-size:22px; font-weight:800; border-radius:46px; }
@@ -556,7 +556,12 @@ function setLevel(f, x, y) {
 function ladderDown() { setLevel(state.floor - 1, hero.x, 2); hero.climb = true; hero.fallTop = hero.y; }
 function ladderUp() {
   const next = state.floor + 1;
-  if (next <= 5 && next > state.maxFloor) { hint(`Nahoru vede žebřík jen za ${FLOORS[next].price} Kč – koupíš ho dole tlačítkem.`); return; }
+  if (next <= 5 && next > state.maxFloor) {
+    const price = FLOORS[next].price;
+    if (state.coins < price) { if (!banner || !banner.text.startsWith('Žebřík')) hint(`Žebřík do patra ${next} stojí ${price} Kč. Ještě kopej!`); return; }
+    state.coins -= price; state.maxFloor = next; sound.bag(); render();
+    floatText(hero.x + HW / 2, hero.y - 20, `Žebřík koupen! −${price} Kč`);
+  }
   setLevel(next, hero.x, (M + 1) * C - HH - 1); hero.climb = true; hero.fallTop = hero.y;
   hint(next === 6 ? 'Vrchol! Vpravo je Hrozná skála…' : `Patro ${next}! Tady jsou lepší rudy.`);
 }
@@ -1391,8 +1396,9 @@ const music = (() => {
     if (bus) { try { bus.disconnect(); } catch (e) {} bus = null; }
   }
   function button() {
-    document.getElementById('musicBtn').innerHTML = state.music === false ? '<span class="crossed">🎵</span> Hudba: vyp' : '🎵 Hudba: zap';
-    document.getElementById('muteBtn').textContent = state.mute ? '🔇 Zvuky: vyp' : '🔊 Zvuky: zap';
+    const short = document.body.classList.contains('touch');   // na tabletu jen ikonky
+    document.getElementById('musicBtn').innerHTML = state.music === false ? '<span class="crossed">🎵</span>' + (short ? '' : ' Hudba: vyp') : '🎵' + (short ? '' : ' Hudba: zap');
+    document.getElementById('muteBtn').textContent = state.mute ? '🔇' + (short ? '' : ' Zvuky: vyp') : '🔊' + (short ? '' : ' Zvuky: zap');
   }
   return {
     theme,
@@ -1405,7 +1411,13 @@ document.getElementById('musicBtn').addEventListener('click', () => { sound.unlo
 document.getElementById('muteBtn').addEventListener('click', () => { sound.unlock(); music.mute(); canvas.focus(); });
 
 // ================= start =================
-const markTouch = () => document.body.classList.add('touch');
+const markTouch = () => {
+  if (document.body.classList.contains('touch')) return;
+  document.body.classList.add('touch');
+  const bar = document.querySelector('header .bar');
+  ['help', 'full', 'reset'].forEach(id => bar.appendChild(document.getElementById(id)));
+  document.getElementById('full').textContent = '⛶'; document.getElementById('reset').textContent = 'Nová hra';
+};
 if (navigator.maxTouchPoints > 0 || matchMedia('(pointer:coarse)').matches) markTouch();
 addEventListener('touchstart', markTouch, { once:true, passive:true });
 document.addEventListener('contextmenu', e => e.preventDefault());
@@ -1417,7 +1429,7 @@ document.getElementById('play').addEventListener('click', () => {
 loadFloor();
 placeHero(state.hero.x, state.hero.y);
 render();
-hint('Šipkami jdi doprava ke skále a kopej! Vlevo je stánek Pana prodavače.');
+hint('Jdi doprava ke skále a kopej! Vlevo je stánek Pana prodavače.');
 canvas.focus();
 requestAnimationFrame(frame);
 </script>
